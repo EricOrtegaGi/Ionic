@@ -17,7 +17,7 @@
           <ion-row>
             <ion-col>
               <div class="ion-text-start" id="score">
-                Clicks per Second: {{ cps.toFixed(2) }}
+                Clicks per Second: {{ cpsResult.toFixed(2) }}
               </div>
             </ion-col>
             <ion-col>
@@ -31,54 +31,51 @@
       </ion-header>
 
       <div id="container">
-        <ion-button @click="Boto" :disabled="counterDisabled">{{ funciona ? 'Tap Me' : 'Start Game' }}</ion-button>
+        <ion-button @click="Boto" :disabled="buttonDisabled">
+          {{ funciona ? 'Tap Me' : 'Start Game' }}
+        </ion-button>
       </div>
     </ion-content>
   </ion-page>
 </template>
 
 <script>
-import { alertController, IonButton, IonButtons, IonContent, IonGrid, IonHeader, IonIcon, IonPage, IonTitle, IonToolbar, toastController } from '@ionic/vue';
+import { alertController, IonButton, IonContent, IonGrid, IonHeader, IonIcon, IonPage, IonTitle, IonToolbar, toastController } from '@ionic/vue';
 import { defineComponent } from 'vue';
 import { informationCircleOutline } from "ionicons/icons";
 
 const INITIAL_TIME = 5;
+const RESET_DELAY = 2000;
 
 export default defineComponent({
   name: 'ComptadorApp',
-  components: {
-    IonButton,
-    IonButtons,
-    IonContent,
-    IonHeader,
-    IonIcon,
-    IonPage,
-    IonTitle,
-    IonToolbar,
-    IonGrid
-  },
-  setup () {
+  components: { IonButton, IonContent, IonHeader, IonIcon, IonPage, IonTitle, IonToolbar, IonGrid },
+  setup() {
     return {
       infoIcon: informationCircleOutline,
-      counterDisabled: false,
+      buttonDisabled: false,
     }
   },
-  data () {
+  data() {
     return {
       comptador: 0,
       temporitzador: INITIAL_TIME,
       funciona: false,
-      cps: 0
+      cpsResult: 0,
+      countdownTimer: null,
+      clickCountTimer: null,
+      updateUITimer: null
     }
   },
   watch: {
-    temporitzador: function(newTime) {
+    temporitzador(newTime) {
       if (newTime <= 0) {
         this.funciona = false;
         clearInterval(this.countdownTimer);
         clearInterval(this.clickCountTimer);
         this.Resultat();
-        this.comptador = 0;
+        this.buttonDisabled = true;
+        setTimeout(() => { this.reset(); this.buttonDisabled = false; }, RESET_DELAY);
       }
     }
   },
@@ -87,64 +84,51 @@ export default defineComponent({
       const alert = await alertController.create({
         header: 'App Comptador',
         subHeader: 'Creado por Eric Ortega Gisbert',
-        message: 'Puedes encontrar el código fuente en: <a href="https://github.com/EricOrtegaGi/Ionic">https://github.com/EricOrtegaGi/Ionic</a>',
+        message: 'Puedes encontrar el código fuente en: <a href="https://github.com/EricOrtegaGi/Ionic">GitHub</a>',
         buttons: ['OK'],
       });
       await alert.present();
     },
-    Boto () {
-      if (!this.funciona) {
-        this.startGame();
-      } else {
-        this.increment();
-      }
+    Boto() {
+      if (!this.funciona && !this.buttonDisabled) this.startGame();
+      else if (this.funciona && !this.buttonDisabled) this.increment();
     },
-    startGame () {
-      this.init();
+    startGame() {
+      this.reset();
       this.funciona = true;
-      this.countdownTimer = setInterval(() => {
-        if (this.temporitzador > 0) {
-          this.temporitzador--;
-          this.cps();
-        } else {
-          this.endGame();
-        }
-      }, 1000);
+      this.countdownTimer = setInterval(() => { if (this.temporitzador > 0) this.temporitzador--; else this.endGame(); }, 1000);
+
+      this.clickCountTimer = setInterval(() => { /* Add anything needed every second */ }, 1000);
+
+      this.updateUITimer = setInterval(() => { if (this.temporitzador <= 0) clearInterval(this.updateUITimer); }, 100);
     },
-    increment () {
+    increment() {
       this.comptador++;
     },
-    endGame () {
+    endGame() {
+      clearInterval(this.countdownTimer);
+
+      if (this.temporitzador <= 0) this.Resultat();
+
+      this.buttonDisabled = true;
+      setTimeout(() => { this.reset(); this.buttonDisabled = false; }, RESET_DELAY);
+    },
+    reset() {
       clearInterval(this.countdownTimer);
       clearInterval(this.clickCountTimer);
-      this.Resultat();
-      this.reset();
-    },
-    reset () {
+      clearInterval(this.updateUITimer);
+
       this.comptador = 0;
       this.temporitzador = INITIAL_TIME;
       this.funciona = false;
-      this.cps = 0;
     },
-    cps () {
-      this.cps = this.comptador / (INITIAL_TIME - this.temporitzador);
+    init() {
+      this.clickCountTimer = setInterval(() => { /* Add anything needed every second */ }, 1000);
     },
-    init () {
-      this.clickCountTimer = setInterval(() => {
-        this.cps();
-      }, 1000);
-    },
-    async Resultat () {
+    async Resultat() {
       const message = `Game Over! Counter: ${this.comptador}`;
       console.log(message);
-      // Show toast message
-      const toast = await toastController.create({
-        color: 'dark',
-        duration: 2000,
-        message,
-        showCloseButton: true
-      });
-
+      const toast = await toastController.create({ color: 'dark', duration: 2000, message, showCloseButton: true });
       await toast.present();
     }
   }
